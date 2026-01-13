@@ -2,42 +2,86 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Index Direktori</title>
+  <title>Index Repository</title>
   <style>
-    body { font-family: Arial, sans-serif; }
-    a { text-decoration: none; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+    }
+    ul { list-style: none; padding-left: 20px; }
+    li { margin: 4px 0; }
+    .folder { font-weight: bold; }
+    a { text-decoration: none; color: #0366d6; }
   </style>
 </head>
 <body>
-  <h1>Isi Direktori</h1>
-  <ul id="list"></ul>
 
-  <script>
-    const user = "template-zany";
-    const repo = "template-blogger";
-    const path = ""; // contoh: "docs" kalau mau subfolder
+<h1>Isi Repository</h1>
+<div id="tree"></div>
 
-    fetch(`https://api.github.com/repos/${user}/${repo}/contents/${path}`)
-      .then(res => res.json())
-      .then(data => {
-        const list = document.getElementById("list");
+<script>
+const user = "template-zany";
+const repo = "template-blogger";
+const branch = "main";
 
-        data.forEach(item => {
-          const li = document.createElement("li");
-          const a = document.createElement("a");
+async function loadRepo() {
+  // ambil commit terakhir
+  const repoData = await fetch(`https://api.github.com/repos/${user}/${repo}`);
+  const repoJson = await repoData.json();
 
-          a.href = item.type === "dir"
-            ? item.path + "/"
-            : item.download_url;
+  const treeSha = repoJson.default_branch;
 
-          a.textContent = item.name + (item.type === "dir" ? "/" : "");
-          li.appendChild(a);
-          list.appendChild(li);
-        });
-      })
-      .catch(err => {
-        document.body.innerHTML += "<p>Gagal memuat data</p>";
-      });
-  </script>
+  const treeRes = await fetch(
+    `https://api.github.com/repos/${user}/${repo}/git/trees/${treeSha}?recursive=1`
+  );
+  const treeJson = await treeRes.json();
+
+  renderTree(treeJson.tree);
+}
+
+function renderTree(tree) {
+  const root = {};
+
+  // bangun struktur folder
+  tree.forEach(item => {
+    const parts = item.path.split("/");
+    let current = root;
+
+    parts.forEach((part, i) => {
+      if (!current[part]) {
+        current[part] = i === parts.length - 1 ? item : {};
+      }
+      current = current[part];
+    });
+  });
+
+  document.getElementById("tree").appendChild(buildList(root));
+}
+
+function buildList(obj, basePath = "") {
+  const ul = document.createElement("ul");
+
+  Object.keys(obj).sort().forEach(key => {
+    const li = document.createElement("li");
+    const item = obj[key];
+    const path = basePath ? basePath + "/" + key : key;
+
+    if (item.type === "blob") {
+      li.innerHTML = `📄 <a href="https://raw.githubusercontent.com/${user}/${repo}/main/${path}" target="_blank">${key}</a>`;
+    } else {
+      li.innerHTML = `📁 <span class="folder">${key}</span>`;
+      li.appendChild(buildList(item, path));
+    }
+
+    ul.appendChild(li);
+  });
+
+  return ul;
+}
+
+loadRepo();
+</script>
+
 </body>
 </html>
