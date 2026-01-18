@@ -12,7 +12,6 @@
       padding:20px;
     }
 
-    /* Bungkus utama */
     #all-files {
       max-width: 600px;
       width: 90%;
@@ -27,9 +26,24 @@
 
     #all-files h3 {
       font-size: 1.4rem;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       color: #222;
-      line-height: 1.3;
+    }
+
+    /* Search box */
+    #searchBox {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    #searchBox:focus {
+      outline: none;
+      border-color: #0073e6;
     }
 
     #fileList {
@@ -58,7 +72,6 @@
       transform: translateY(-2px);
     }
 
-    /* Responsif layar kecil */
     @media (max-width: 480px) {
       #all-files {
         margin: 20px auto;
@@ -78,43 +91,77 @@
 <body>
   <div id="all-files">
     <h3>📂 Daftar File di Repo</h3>
-    <ul id="fileList"><li>Loading...</li></ul>
+
+    <!-- Live Search -->
+    <input
+      type="text"
+      id="searchBox"
+      placeholder="🔍 Cari file atau folder..."
+      oninput="filterFiles(this.value)"
+    >
+
+    <ul id="fileList">
+      <li>Loading...</li>
+    </ul>
   </div>
 
   <script>
+    const apiUrl = "https://api.github.com/repos/template-zany/template-blogger/contents/";
+    let allFiles = [];
+
     async function loadRepo() {
-  const list = document.getElementById("fileList");
-  list.innerHTML = "";
+      const list = document.getElementById("fileList");
+      list.innerHTML = "<li>Loading...</li>";
 
-  const apiUrl = "https://api.github.com/repos/template-zany/template-blogger/contents/";
+      try {
+        const res = await fetch(apiUrl);
+        const data = await res.json();
 
-  try {
-    const res = await fetch(apiUrl);
-    const data = await res.json();
+        if (!Array.isArray(data)) {
+          list.innerHTML = "<li>Tidak ada data.</li>";
+          return;
+        }
 
-    if (!Array.isArray(data)) {
-      list.innerHTML = "<li>Tidak ada data.</li>";
-      return;
+        allFiles = data;
+        renderList(allFiles);
+
+      } catch (e) {
+        list.innerHTML = "<li>Gagal memuat data.</li>";
+        console.error(e);
+      }
     }
 
-    data.forEach(item => {
-      const li = document.createElement("li");
-      if (item.type === "dir") {
-        // Link folder tetap pakai html_url
-        li.innerHTML = `<a href="${item.html_url}" target="_blank">📁 ${item.name}</a>`;
-      } else {
-        // Ubah link ke GitHub Pages
-        const githubPagesUrl = `https://template-zany.github.io/template-blogger/${item.name}`;
-        li.innerHTML = `<a href="${githubPagesUrl}" target="_blank">📄 ${item.name}</a>`;
-      }
-      list.appendChild(li);
-    });
-  } catch (e) {
-    list.innerHTML = "<li>Gagal memuat data.</li>";
-    console.error(e);
-  }
-}
+    function renderList(files) {
+      const list = document.getElementById("fileList");
+      list.innerHTML = "";
 
+      if (files.length === 0) {
+        list.innerHTML = "<li>Tidak ditemukan.</li>";
+        return;
+      }
+
+      files.forEach(item => {
+        const li = document.createElement("li");
+
+        if (item.type === "dir") {
+          li.innerHTML = `<a href="${item.html_url}" target="_blank">📁 ${item.name}</a>`;
+        } else {
+          const githubPagesUrl =
+            `https://template-zany.github.io/template-blogger/${item.name}`;
+          li.innerHTML = `<a href="${githubPagesUrl}" target="_blank">📄 ${item.name}</a>`;
+        }
+
+        list.appendChild(li);
+      });
+    }
+
+    function filterFiles(keyword) {
+      const q = keyword.toLowerCase();
+      const filtered = allFiles.filter(item =>
+        item.name.toLowerCase().includes(q)
+      );
+      renderList(filtered);
+    }
 
     loadRepo();
   </script>
